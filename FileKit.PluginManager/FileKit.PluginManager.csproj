@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FileKit.Contracts\FileKit.Contracts.csproj" />
+  </ItemGroup>
+
+  <!-- M3：EffectManager 复用 PathRules / VersionRules / PluginLoadContext 等内部工具（纯增量，不改 M2 逻辑）。 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="FileKit.EffectManager" />
+  </ItemGroup>
+
+</Project>

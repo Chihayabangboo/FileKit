@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FileKit.Contracts\FileKit.Contracts.csproj" />
+    <ProjectReference Include="..\FileKit.PluginManager\FileKit.PluginManager.csproj" />
+    <ProjectReference Include="..\FileKit.EffectManager\FileKit.EffectManager.csproj" />
+    <!-- 仅用于构建顺序：内置特效程序集由 StageBuiltinEffects 复制到 effects\builtin，不作为 Host 引用。 -->
+    <ProjectReference Include="..\FileKit.TestEffect\FileKit.TestEffect.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <!--
+    M3：把内置特效 staged 到输出目录 effects\builtin\{effectId}\。
+    部署后目录结构：FileKit.Host.exe + effects\builtin\filekit.test-effect\{manifest.json, libs\FileKit.TestEffect.dll}
+  -->
+  <Target Name="StageBuiltinEffects" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)..\FileKit.TestEffect\FileKit.TestEffect.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="BuiltinTestEffectAssembly" />
+    </MSBuild>
+
+    <ItemGroup>
+      <BuiltinEffectPayload Include="$(MSBuildThisFileDirectory)..\effects\builtin\filekit.test-effect\manifest.json" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(BuiltinTestEffectAssembly)"
+          DestinationFolder="$(OutDir)effects\builtin\filekit.test-effect\libs"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(BuiltinEffectPayload)"
+          DestinationFolder="$(OutDir)effects\builtin\filekit.test-effect"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

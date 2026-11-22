@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 共享契约（M2 已存在）与 M2 内部工具（PathRules / VersionRules / PluginLoadContext，经 InternalsVisibleTo 复用）。 -->
+    <ProjectReference Include="..\FileKit.Contracts\FileKit.Contracts.csproj" />
+    <ProjectReference Include="..\FileKit.PluginManager\FileKit.PluginManager.csproj" />
+  </ItemGroup>
+
+</Project>

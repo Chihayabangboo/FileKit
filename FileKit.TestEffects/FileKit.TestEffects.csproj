@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 只引用共享契约；由 build-effects.ps1 单独打包，不加入 FileKit.sln、不被 Host 引用。 -->
+    <ProjectReference Include="..\FileKit.Contracts\FileKit.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

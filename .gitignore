@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+
+# FileKit 运行时数据（构建输出内或独立目录）与异常日志
+FileKitData/
+startup-error.log
+
+# 临时自测/验证产物
+artifacts/
