@@ -6,7 +6,7 @@
     1. 清理旧 test.fkpkg 与临时打包目录
     2. 编译 FileKit.TestPlugin（Release）
     3. 把插件 DLL 复制到临时目录的 libs/
-    4. 生成 manifest.json（version/minHostVersion = 1.0.0）
+    4. 生成 manifest.json（version/minHostVersion = 1.0.1）
     5. 使用 Compress-Archive 打包为 test.fkpkg
     6. 回读 ZIP 校验包结构
 
@@ -87,8 +87,8 @@ try {
     $manifest = [ordered]@{
         id             = 'filekit.test-plugin'
         name           = '测试插件'
-        version        = '1.0.0'
-        minHostVersion = '1.0.0'
+        version        = '1.0.1'
+        minHostVersion = '1.0.1'
         entryAssembly  = 'libs/FileKit.TestPlugin.dll'
         entryType      = 'FileKit.TestPlugin.TestPlugin'
     }

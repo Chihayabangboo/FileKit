@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="FileKit"
+        Icon="app.ico"
         Width="1000"
         Height="680"
         MinWidth="760"
@@ -13,7 +14,7 @@
         WindowStyle="SingleBorderWindow"
         ResizeMode="CanResize"
         Background="Transparent"
-        FontFamily="{x:Static SystemFonts.MessageFontFamily}"
+        FontFamily="{DynamicResource AppFontFamily}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display">
@@ -81,22 +82,77 @@
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
         </Style>
 
+        <!--
+            自定义 TabControl 模板：去掉 WPF 默认模板根 Grid 的 ClipToBounds=True 和
+            HeaderPanel 的 2px Margin，避免最右侧标签的 1px 边框/圆角被裁掉。
+        -->
+        <Style x:Key="PluginTabControlStyle" TargetType="{x:Type TabControl}">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TabControl}">
+                        <Grid x:Name="TabLayoutRoot"
+                              ClipToBounds="False"
+                              SnapsToDevicePixels="True"
+                              KeyboardNavigation.TabNavigation="Local">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TabPanel x:Name="HeaderPanel"
+                                      Grid.Row="0"
+                                      Margin="0"
+                                      Background="Transparent"
+                                      ClipToBounds="False"
+                                      IsItemsHost="True"
+                                      KeyboardNavigation.TabIndex="1"
+                                      Panel.ZIndex="2" />
+                            <Border x:Name="ContentPanel"
+                                    Grid.Row="1"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    ClipToBounds="False"
+                                    KeyboardNavigation.TabIndex="2"
+                                    KeyboardNavigation.TabNavigation="Local">
+                                <ContentPresenter x:Name="PART_SelectedContentHost"
+                                                  ContentSource="SelectedContent"
+                                                  HorizontalAlignment="Stretch"
+                                                  VerticalAlignment="Stretch"
+                                                  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="PluginTabItemStyle" TargetType="{x:Type TabItem}">
             <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Height" Value="36" />
             <Setter Property="Padding" Value="16,0" />
-            <Setter Property="Margin" Value="0,0,6,0" />
+            <!-- TabItem 自身不设 Margin：TabPanel 会把 Margin 计入布局槽并产生 LayoutClip，裁掉右侧边框。 -->
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <!-- 内容区必须 Stretch；标签头文字在模板内单独居中，不能被这个 Setter 影响。 -->
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type TabItem}">
                         <Border x:Name="TabSurface"
-                                Background="Transparent"
-                                BorderBrush="Transparent"
-                                BorderThickness="1"
+                                Margin="0,0,10,0"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="8"
-                                SnapsToDevicePixels="True">
+                                SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
                             <ContentPresenter Margin="{TemplateBinding Padding}"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
@@ -111,6 +167,8 @@
                                 <Setter TargetName="TabSurface" Property="Background" Value="{StaticResource CardBackgroundBrush}" />
                                 <Setter TargetName="TabSurface" Property="BorderBrush" Value="{StaticResource CardBorderBrush}" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
+                                <!-- 选中标签置于相邻标签之上，右侧 1px 边框和圆角不会被后绘制的元素盖住。 -->
+                                <Setter Property="Panel.ZIndex" Value="1" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -167,7 +225,9 @@
                         Padding="0"
                         Background="Transparent"
                         BorderThickness="0"
+                        ClipToBounds="False"
                         Visibility="Collapsed"
+                        Style="{StaticResource PluginTabControlStyle}"
                         ItemContainerStyle="{StaticResource PluginTabItemStyle}"
                         HorizontalContentAlignment="Stretch"
                         VerticalContentAlignment="Stretch" />

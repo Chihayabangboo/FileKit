@@ -111,8 +111,8 @@ function Write-EffectManifest {
     $manifest = [ordered]@{
         effectId       = $EffectId
         name           = $Name
-        version        = '1.0.0'
-        minHostVersion = '1.0.0'
+        version        = '1.0.1'
+        minHostVersion = '1.0.1'
         entryAssembly  = 'libs/FileKit.TestEffects.dll'
         entryType      = $EntryType
         target         = $Target

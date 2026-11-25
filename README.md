@@ -2,7 +2,7 @@
 
 > Windows 文件工具宿主 + 业务插件系统 + 视觉特效插件系统
 > 技术栈：.NET 8 / WPF / C#，无第三方 DI 容器；目标框架 `net8.0-windows`。
-> 当前版本：Host `1.0.0`，已完成 M1（宿主与 DWM 材质）、M2（业务插件）、M3（特效插件与开发者模式）及后续启动健壮性修复。
+> 当前版本：Host `1.0.1`（发布收尾版），已完成 M1（宿主与 DWM 材质）、M2（业务插件）、M3（特效插件与开发者模式）、启动健壮性修复、全局字体统一、标签栏视觉修复与应用图标。
 
 ---
 
@@ -59,6 +59,9 @@ FileKit 是一个可扩展的 Windows 桌面文件工具宿主。项目分三个
   - 命令行 `--developer-mode`（最高优先级，强制开启）；
   - 界面顶部左侧复选框，勾选即时切换并持久化；
   - 关闭开发者模式时卸载 dev 特效但保留磁盘文件。
+- **全局字体**：强制系统级 `Microsoft YaHei UI`（西文回退 `Segoe UI`），统一 `Grayscale + Display` 渲染，插件硬编码字体也会被压回系统雅黑。
+- **标签栏**：自定义 `TabControl` 模板，禁用默认裁剪；选中标签四边 1px 边框与 8px 圆角完整显示，标签间距 10px。
+- **应用图标**：`app.ico` 为多尺寸蓝色渐变 + 白色几何 F 图标，同时作为 exe 图标、窗口图标和任务栏图标。
 - **健壮性**：启动异常落盘、数据目录可写回退、受限 TEMP 环境光标缓存重定向，避免“双击无反应/打开弹窗闪退”。
 
 ---
@@ -86,6 +89,9 @@ F/
 ├─ FileKit.sln
 ├─ README.md                       # 本文档
 ├─ .gitignore
+├─ Directory.Build.props           # 全解决方案统一版本 1.0.1
+├─ app.ico                         # 应用/窗口图标（多尺寸，随构建输出分发）
+├─ build-app-icon.ps1              # 用 System.Drawing 生成 app.ico
 ├─ build-test-plugin.ps1           # 构建 FileKit.TestPlugin 并打包 test.fkpkg
 ├─ build-effects.ps1               # 构建 FileKit.TestEffects 并打包 6 个 .fkeffect 样例
 ├─ test.fkpkg                      # M2 示例插件包（根目录）
@@ -105,6 +111,8 @@ F/
 ├─ FileKit.PluginManager/          # M2 底层（源码保持 M2 原样，仅 csproj 增加 InternalsVisibleTo）
 ├─ FileKit.EffectManager/          # M3 底层
 ├─ FileKit.Host/                   # 宿主（主窗口/材质/协调器/弹窗）
+│  └─ Services/
+│     └─ FontEnforcer.cs           # 全局字体/文本渲染强制器（覆盖插件字体）
 ├─ FileKit.TestPlugin/             # M2 示例插件
 ├─ FileKit.TestEffect/             # M3 内置特效
 └─ FileKit.TestEffects/            # M3 样例特效（验收用）
@@ -117,6 +125,7 @@ FileKit.Host/bin/Release/net8.0-windows/
 ├─ FileKit.Host.exe
 ├─ FileKit.Host.dll / runtimeconfig.json / deps.json
 ├─ FileKit.Contracts.dll / FileKit.PluginManager.dll / FileKit.EffectManager.dll
+├─ app.ico                          # 应用图标（同时嵌入 exe 与 WPF 资源）
 ├─ effects/builtin/filekit.test-effect/{manifest.json, libs/FileKit.TestEffect.dll}
 └─ FileKitData/                    # 受限环境下的运行时数据根（见第 5 节）
 ```
@@ -135,13 +144,21 @@ FileKit.Host/bin/Release/net8.0-windows/
 ### 4.2 构建
 
 ```powershell
+# 可选：重新生成应用图标（仓库已包含 app.ico，正常构建不需要执行）
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-app-icon.ps1
+
+# 构建整个解决方案
 dotnet build FileKit.sln -c Release --nologo
 ```
 
 > 在受限沙箱/无命名管道环境里 MSBuild 并行构建可能静默失败，使用：
 > `dotnet build FileKit.sln -c Release --nologo -m:1 -p:BuildInParallel=false`
 
-构建成功后内置特效会自动 staged 到 `FileKit.Host\bin\Release\net8.0-windows\effects\builtin\filekit.test-effect\`（由 Host csproj 的 `StageBuiltinEffects` 目标完成）。
+构建成功后：
+
+- 内置特效会自动 staged 到 `FileKit.Host\bin\Release\net8.0-windows\effects\builtin\filekit.test-effect\`（由 Host csproj 的 `StageBuiltinEffects` 目标完成）；
+- `app.ico` 会复制到 `FileKit.Host\bin\Release\net8.0-windows\app.ico`，随构建版一起分发；
+- 所有项目通过根目录 `Directory.Build.props` 统一为 `1.0.1`。
 
 ### 4.3 运行
 
@@ -151,9 +168,10 @@ dotnet build FileKit.sln -c Release --nologo
 
 # 开发者模式（强制）
 .\FileKit.Host\bin\Release\net8.0-windows\FileKit.Host.exe --developer-mode
+
+# 直接双击 exe 也可启动
 ```
-# 点击.exe也可以直接启动
-> 运行 exe 时请保留整个输出目录（依赖 DLL 与 `effects\builtin` 都在同目录）。
+> 运行 exe 时请保留整个输出目录（依赖 DLL、`app.ico` 与 `effects\builtin` 都在同目录）。
 
 ### 4.4 打包示例
 
@@ -188,6 +206,10 @@ Host 启动时按以下顺序选择**第一个可写**目录作为数据根：
 2. `<exe 目录>\FileKitData`（受限/只读环境回退，本机实际使用）
 3. `%TEMP%\FileKitData`（最后兜底）
 
+“可写”不是只看 `Directory.CreateDirectory` 是否成功，而是对数据根和 `data/` 子目录做真实文件写入探针。否则目录已存在但 ACL/完整性级别拒绝写入时，Host 会误选只读目录，插件解密输出就会报 `Permission denied`。
+
+> 数据根切换后，插件从当前根的 `plugins/` 加载；另一个根下已安装的插件不会自动迁移。受限环境下如需使用原插件，请把对应插件目录安装/复制到当前数据根（不要删除原目录）。
+
 目录结构：
 
 ```text
@@ -206,13 +228,15 @@ Host 启动时按以下顺序选择**第一个可写**目录作为数据根：
 
 ### 5.2 临时目录修复（重要）
 
-Windows 上 WPF 的 `GridViewColumnHeader` 加载拖拽光标时需要写 `%TEMP%\WPF\*.tmp`。若 `%TEMP%` 不可写（受限账户/只读环境），打开【插件管理】会抛 `UnauthorizedAccessException` 并闪退。
+Windows 上 WPF 的 `GridViewColumnHeader` 加载拖拽光标时需要写 `%TEMP%\WPF\*`。若 `%TEMP%` 或其 `WPF` 子目录不可写（受限账户/只读环境/ACL 异常），打开【插件管理】会抛 `UnauthorizedAccessException` 并闪退。
 
 Host 在 `App.OnStartup` 最早阶段调用 `HostPaths.EnsureWritableTemp()`：
 
-- 探测默认 TEMP 是否可写；
-- 不可写时把进程级 `TEMP`/`TMP` 重定向到 `<DataRoot>\Temp`；
-- 默认 TEMP 可写时不做任何改变。
+- 同时探测默认 `%TEMP%` 根目录与 `%TEMP%\WPF` 子目录是否真实可写；
+- 任一不可写时，按顺序尝试 `<DataRoot>\Temp`、`<exe 目录>\FileKitData\Temp`、`%TEMP%\FileKitData\Temp`；
+- 选定候选后创建 `WPF` 子目录并做写入探针，再把进程级 `TEMP`/`TMP` 重定向到该目录；
+- 默认 TEMP 与 WPF 子目录都可写时不做任何改变；
+- `MainWindow.ShowPluginManagerWindow()` 额外捕获弹窗初始化异常，失败时提示错误而不是让整个 Host 闪退。
 
 ### 5.3 启动异常日志
 
@@ -236,6 +260,42 @@ Host 在 `App.OnStartup` 最早阶段调用 `HostPaths.EnsureWritableTemp()`：
   - 任一步失败：纯色 `SurfaceFallbackBrush` 兜底，不抛异常。
 - `FileKit.Host/Interop/DwmApi.cs`：最小 DWM P/Invoke 封装。
 - 材质逻辑对后续特效系统暴露的能力：栈空时调用 `WindowMaterialService.TryApply(hwnd)` 恢复默认。
+
+### 6.1 全局字体与文本渲染（UI 视觉规范）
+
+主程序强制接管并统一所有插件的文本渲染，统一使用系统级无衬线字体 (Microsoft YaHei UI)，并采用 Grayscale 渲染模式，以保证所有环境下的清晰度，杜绝第三方字体的重影问题。
+
+- **全局字体**：[App.xaml](FileKit.Host/App.xaml) 定义
+  `<FontFamily x:Key="AppFontFamily">Microsoft YaHei UI, Segoe UI</FontFamily>`，
+  并为 `Window` / `Control` / `TextBlock` 设置使用该资源的隐式样式；不再引入/内嵌任何第三方字体。
+- **文本渲染模式**：全局统一 `TextRenderingMode.Grayscale` + `TextFormattingMode.Display`。
+  `App.xaml.cs` 在创建主窗口后立即对窗口设置，`FontEnforcer` 也会对所有窗口/插件控件持续强制；
+  Grayscale 从根源消除亚像素渲染产生的彩边/发虚。
+- **“暴君”强制器**：[FontEnforcer.cs](FileKit.Host/Services/FontEnforcer.cs) 在
+  `FrameworkElement.Loaded` 全局类处理器中覆盖元素的本地 `FontFamily` 与 `TextOptions`，
+  并每 250ms 对全部窗口做一次兜底扫描；插件在 XAML/代码里硬编码的字体都会被压回系统雅黑。
+- **部署**：不使用字体文件，主程序输出目录中不含任何 `.ttf/.otf/.ttc`；
+  显示完全依赖 Windows 自带的 Microsoft YaHei UI / Segoe UI，无需安装字体。
+- **验证**：`dotnet build -c Release` 0 警告 0 错误；主程序启动正常；
+  `FileKit.Host\bin\Release\net8.0-windows` 下无字体文件。
+
+### 6.2 标签栏视觉规范
+
+主窗口的插件标签栏由 `PluginTabControlStyle` + `PluginTabItemStyle` 接管，避免 WPF 默认模板的裁切问题：
+
+- **自定义 `TabControl` 模板**：根 `Grid` 与 `TabPanel` 均 `ClipToBounds="False"`，`TabPanel` 不再使用默认模板的 `Margin="2,2,2,0"`，最右侧标签的 1px 边框和圆角不会被裁掉。
+- **`TabItem` 四边边框**：`BorderThickness="1"` 作为样式 Setter，并通过 `{TemplateBinding BorderThickness}` 传给模板 Border；选中态同时设置背景、边框色和 `Panel.ZIndex="1"`。
+- **间距与圆角**：间距 10px 放在模板 `TabSurface` 上而不是 `TabItem.Margin`（TabPanel 会把 TabItem 的 Margin 计入布局槽并产生 LayoutClip，裁掉右侧边框）；圆角 `8px`，内容卡片与标签之间保留 8px 呼吸空间。
+- **内容区拉伸**：`TabItem.HorizontalContentAlignment/VerticalContentAlignment` 设为 `Stretch`，插件内容卡片铺满 TabControl 可用宽度；标签头文字在 `TabItem` 模板内单独 `Center`，不受内容区拉伸影响。
+- **验证**：Release 构建后使用离屏 WPF 渲染两只标签，检查四边边框、右侧圆角与间距；真实窗口启动/切换标签正常。
+
+### 6.3 应用图标
+
+- 根目录 `app.ico` 由 [build-app-icon.ps1](build-app-icon.ps1) 使用 `System.Drawing` / GDI+ 生成，不依赖字体文件或第三方素材。
+- 设计：蓝色圆角方形 + 顶部玻璃高光 + 白色几何字母 F；16/20/24/32/40/48/64 使用 32 位 DIB，128/256 使用 PNG 压缩帧。
+- `FileKit.Host.csproj` 通过 `<ApplicationIcon>..\app.ico</ApplicationIcon>` 嵌入 exe 图标，并把 `app.ico` 作为 WPF `Resource`（逻辑名 `app.ico`）供 `MainWindow.xaml` 的 `Icon="app.ico"` 使用。
+- `app.ico` 同时以 `CopyToOutputDirectory` 复制到输出目录，随构建版一起分发。
+- 重新生成：`powershell -NoProfile -ExecutionPolicy Bypass -File .\build-app-icon.ps1`。
 
 ---
 
@@ -290,7 +350,7 @@ public interface IPluginContext
 [
   {
     "id": "filekit.test-plugin",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "directoryPath": "C:\\...\\plugins\\filekit.test-plugin",
     "enabled": true
   }
@@ -314,7 +374,7 @@ public interface IPluginContext
 ### 7.7 示例插件
 
 - `FileKit.TestPlugin/TestPlugin.cs`：视图显示“测试插件已成功加载！”+ PluginId/HostVersion/DataDirectory。
-- `build-test-plugin.ps1` 生成根目录 `test.fkpkg`（`id=filekit.test-plugin`）。
+- `build-test-plugin.ps1` 生成根目录 `test.fkpkg`（`id=filekit.test-plugin`，包版本 `1.0.1`，`minHostVersion=1.0.1`）。
 
 ---
 
@@ -360,8 +420,8 @@ public interface IFileKitEffect : IDisposable
 {
   "effectId": "filekit.dev.custom-overlay",
   "name": "自定义 Overlay 特效",
-  "version": "1.0.0",
-  "minHostVersion": "1.0.0",
+  "version": "1.0.1",
+  "minHostVersion": "1.0.1",
   "entryAssembly": "libs/FileKit.TestEffects.dll",
   "entryType": "FileKit.TestEffects.CustomOverlayEffect",
   "target": "Window"
@@ -474,6 +534,7 @@ public interface IFileKitEffect : IDisposable
 | 类 | 位置 | 职责 |
 |---|---|---|
 | `HostPaths` | `FileKit.Host/Services/HostPaths.cs` | 可写数据根解析、TEMP/TMP 重定向 |
+| `FontEnforcer` | `FileKit.Host/Services/FontEnforcer.cs` | 全局字体 + Grayscale/Display 渲染强制（覆盖插件字体与渲染模式） |
 | `DeveloperMode` | `Services/DeveloperMode.cs` | 命令行/本地配置判定与持久化 |
 | `WindowMaterialService` | `Services/WindowMaterialService.cs` | M1 默认 DWM 材质申请与降级 |
 | `EffectMaterialController` | `Services/EffectMaterialController.cs` | 特效显式材质应用（Mica/Acrylic/None） |
@@ -567,7 +628,7 @@ public sealed class EffectManager : IDisposable
 | 现象 | 排查 |
 |---|---|
 | 双击无反应/启动失败 | 查看 exe 目录 `startup-error.log`（或 `<DataRoot>\logs\startup-error.log`） |
-| 打开插件管理/特效管理闪退 | 需可写 TEMP；Host 会自动重定向到 `<DataRoot>\Temp`，确认该目录未被手动删除/限制 |
+| 打开插件管理/特效管理闪退 | 需可写 `%TEMP%\WPF`；Host 会探测并重定向到 `<DataRoot>\Temp` 或 `<exe>\FileKitData\Temp`，查看 `startup-error.log` 确认实际 TEMP 路径与 ACL |
 | 插件加载失败 | `<DataRoot>\logs\plugin-manager.log`；检查 manifest/版本/入口类型 |
 | 特效加载/挂载失败 | `<DataRoot>\logs\effects.log`；检查 manifest/target/entryType/实例 EffectId |
 | 卸载后残留 `*_pending_delete_*` | 文件占用保护；下次启动自动清理 |
@@ -589,6 +650,7 @@ public sealed class EffectManager : IDisposable
 7. **单实例约束**：未实现单实例互斥；同时运行多个 Host 会共享数据目录（插件状态以最后一次写入为准）。
 8. **测试工程**：开发期临时自测工程不随交付保留；如需回归，可按本文档的验收清单复现。
 9. **受限环境**：数据/临时目录会自动回退到 exe 目录，导致插件/特效数据不随用户漫游；这是为了保证只读/低权限环境可运行。
+10. **字体与渲染**：全局强制系统级无衬线字体 `Microsoft YaHei UI`（西文回退 `Segoe UI`），统一 `Grayscale + Display` 渲染；不打包、不依赖任何第三方字体文件，主程序输出目录不含 `.ttf`。
 
 ---
 
@@ -602,21 +664,37 @@ public sealed class EffectManager : IDisposable
 | 交互整改 | 顶部开发者模式复选框（即时切换/持久化/CLI 优先）、加载提示 1.5s+0.7s 自动淡出移除 |
 | 启动修复 | 数据根可写回退（`HostPaths`）、启动异常落盘、移除 `StartupUri` 改由 App 创建窗口 |
 | 弹窗闪退修复 | 受限 TEMP 下 WPF 光标缓存写入失败 → 进程 TEMP/TMP 自动重定向到 `<DataRoot>\Temp` |
+| 字体回退 | 移除第三方字体方案；全局统一 Microsoft YaHei UI + Segoe UI，Grayscale/Display 渲染，FontEnforcer 覆盖插件字体，输出目录无字体文件 |
+| 弹窗闪退二次修复 | `EnsureWritableTemp` 增加 `%TEMP%\WPF` 子目录探针与多级候选回退；插件管理弹窗初始化异常改为提示，不再让 Host 闪退 |
+| 数据根写探针 | `HostPaths.Resolve` 不再只用 `Directory.CreateDirectory` 判断可写；对数据根与 `data/` 做真实写探针，避免插件写到只读根后报 `Permission denied` |
+| 发布收尾（1.0.1） | 标签栏默认模板裁切修复（四边 1px 边框、8px 圆角、10px 间距）、插件内容区 Stretch 铺满、多尺寸 `app.ico`、全解决方案版本统一 1.0.1、Release 重建与 `test.fkpkg` 重打包、无效构建残留清理 |
 
 ---
 
 ## 16. 仓库清理说明
 
-本次整理已删除：
+### 16.1 本轮发布收尾清理（1.0.1）
 
-- `artifacts/`：临时自测工程、验证日志、历史截图、临时 `.fkeffect`/`.fkpkg` 样例包（样例包可通过 `build-effects.ps1` 重新生成）；
+只删除了 README 未提及、可再生成的无效构建残留：
+
+- `FileKit.Contracts\bin\NoSuchConfig\`（3 个文件）：使用不存在的配置名构建留下的无效输出；
+- `FileKit.TestPlugin\bin\NoSuchConfig\`（5 个文件）：同上，测试残留；
+- `FileKit.Contracts\bin\Release\net8.0\`（3 个文件）：过期的非 `net8.0-windows` 目标输出。
+
+合计 11 个文件、69,423 字节。另清除了构建输出目录中一份旧的 `startup-error.log`（运行时崩溃日志，非构建产物）。源码、最终构建产物、插件包、文档与用户运行时数据均未删除。
+
+### 16.2 历史整理
+
+此前已删除：
+
+- `artifacts/`：临时自测工程、验证日志、历史截图、临时 `.fkeffect`/`.fkpkg` 样例包（样例包可通过 `build-effects.ps1` 重新生成）；字体整改期间的探针工程、第三方字体文件也已全部删除；
 - 分阶段历史报告（M2/M3 自测与验收、架构草稿等），其内容已整合进本文档；
 - 运行时临时缓存与日志（`<DataRoot>\Temp`、`logs`、`startup-error.log`）；
 - 各项目测试用 `obj`/`Debug` 构建中间产物（`bin\Release` 保留以便直接运行）。
 
 保留：
 
-- 全部源码、解决方案、构建/打包脚本、内置特效 manifest、`test.fkpkg`；
-- `bin\Release` 可运行输出；
-- 用户运行时数据（已安装插件、开发者模式配置等）不被清理；
+- 全部源码、解决方案、构建/打包脚本、内置特效 manifest、`app.ico`、`Directory.Build.props`、`test.fkpkg`；
+- `bin\Release` 可运行输出（含 exe、依赖 DLL、`app.ico` 与内置特效）；
+- 用户运行时数据（已安装插件、开发者模式配置等）不被清理，包括 `FileKit.Host\bin\Release\net8.0-windows\FileKitData\` 与 `%LOCALAPPDATA%\FileKit`；
 - `docs/images/` 文档截图。

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using FileKit.Host.Services;
 
@@ -21,6 +22,11 @@ public partial class App : Application
         // 必须在创建任何 WPF 窗口/列表控件前完成：受限环境下 WPF 写 %TEMP%\WPF 光标缓存会失败。
         HostPaths.EnsureWritableTemp();
 
+        // 全局文本渲染：Grayscale 消除亚像素彩边，Display 提升小字号清晰度。
+        // 注意：Application 不是 DependencyObject，TextOptions 无法直接设在 this 上；
+        // 因此在这里对创建出的主窗口设置，并由 FontEnforcer 对所有窗口/插件控件持续强制。
+        FontEnforcer.Install();
+
         base.OnStartup(e);
 
         AppDomain.CurrentDomain.UnhandledException += HandleDomainUnhandledException;
@@ -30,6 +36,8 @@ public partial class App : Application
         {
             var window = new MainWindow();
             MainWindow = window;
+            TextOptions.SetTextRenderingMode(window, TextRenderingMode.Grayscale);
+            TextOptions.SetTextFormattingMode(window, TextFormattingMode.Display);
             window.Show();
         }
         catch (Exception ex)

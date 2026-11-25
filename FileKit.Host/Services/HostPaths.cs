@@ -35,7 +35,11 @@ internal static class HostPaths
         try
         {
             string current = Path.GetTempPath();
-            if (IsDirectoryWritable(current))
+
+            // WPF 实际使用的是 %TEMP%\WPF 子目录（GridView 光标缓存）。
+            // 只探测 TEMP 根本身不够：低完整性/受限 ACL 下根目录可写，但 WPF 子目录可能被拒绝。
+            string wpfDirectory = Path.Combine(current, "WPF");
+            if (IsDirectoryWritable(current) && IsDirectoryWritable(wpfDirectory))
             {
                 return;
             }
@@ -45,19 +49,53 @@ internal static class HostPaths
             Debug.WriteLine($"[FileKit] Could not probe default temp path: {ex.GetType().Name}: {ex.Message}");
         }
 
+        foreach (string candidateRoot in EnumerateTempRootCandidates())
+        {
+            try
+            {
+                string tempRoot = Path.Combine(candidateRoot, "Temp");
+                string wpfTemp = Path.Combine(tempRoot, "WPF");
+                Directory.CreateDirectory(tempRoot);
+                Directory.CreateDirectory(wpfTemp);
+                if (!IsDirectoryWritable(wpfTemp))
+                {
+                    continue;
+                }
+
+                Environment.SetEnvironmentVariable("TEMP", tempRoot, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable("TMP", tempRoot, EnvironmentVariableTarget.Process);
+                Debug.WriteLine($"[FileKit] Process TEMP redirected to '{tempRoot}'.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                // 继续尝试下一个候选目录；重定向失败不应阻塞启动。
+                Debug.WriteLine(
+                    $"[FileKit] Could not use temp root '{candidateRoot}': {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        // 全部候选失败时保留原 TEMP；调用方（弹窗）仍有兜底 catch，避免整个 Host 闪退。
+        Debug.WriteLine("[FileKit] No writable temp root candidate was found.");
+    }
+
+    private static IEnumerable<string> EnumerateTempRootCandidates()
+    {
+        yield return FileKitRoot;
+        yield return Path.Combine(AppContext.BaseDirectory, "FileKitData");
+
+        string tempFallback;
         try
         {
-            string tempRoot = Path.Combine(FileKitRoot, "Temp");
-            Directory.CreateDirectory(tempRoot);
-            Environment.SetEnvironmentVariable("TEMP", tempRoot, EnvironmentVariableTarget.Process);
-            Environment.SetEnvironmentVariable("TMP", tempRoot, EnvironmentVariableTarget.Process);
-            Debug.WriteLine($"[FileKit] Process TEMP redirected to '{tempRoot}'.");
+            tempFallback = Path.Combine(Path.GetTempPath(), "FileKitData");
         }
         catch (Exception ex)
         {
-            // 重定向失败不阻塞启动；WPF 若在此环境仍无法加载光标，弹窗会被上层 catch 记录而不是崩溃。
-            Debug.WriteLine($"[FileKit] Could not redirect temp path: {ex.GetType().Name}: {ex.Message}");
+            Debug.WriteLine($"[FileKit] Could not build TEMP fallback: {ex.GetType().Name}: {ex.Message}");
+            yield break;
         }
+
+        yield return tempFallback;
     }
 
     private static bool IsDirectoryWritable(string directory)
@@ -114,6 +152,20 @@ internal static class HostPaths
             try
             {
                 Directory.CreateDirectory(path);
+
+                // 仅 CreateDirectory 成功不代表可写：目录已存在但 ACL/完整性级别拒绝写入时，
+                // 它仍会返回成功，导致后续插件把数据写到只读根并报 Permission denied。
+                // 这里对数据根和 data 子目录做真实写探针，不可写就回退到 exe 目录的 FileKitData。
+                bool rootWritable = IsDirectoryWritable(path);
+                bool dataWritable = rootWritable && IsDirectoryWritable(Path.Combine(path, "data"));
+                if (!rootWritable || !dataWritable)
+                {
+                    Debug.WriteLine(
+                        $"[FileKit] Data root '{path}' ({description}) exists but is not writable " +
+                        $"(root={rootWritable}, data={dataWritable}); trying next candidate.");
+                    continue;
+                }
+
                 Debug.WriteLine($"[FileKit] Data root '{path}' ({description}) is writable.");
                 return path;
             }

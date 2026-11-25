@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using FileKit.Host.Services;
@@ -58,12 +59,34 @@ public partial class MainWindow
             return;
         }
 
-        _pluginManagerWindow = new PluginManagerWindow(_pluginCoordinator)
+        PluginManagerWindow? window = null;
+        try
         {
-            Owner = this,
-        };
-        _pluginManagerWindow.Closed += HandlePluginManagerWindowClosed;
-        _pluginManagerWindow.ShowDialog();
+            window = new PluginManagerWindow(_pluginCoordinator)
+            {
+                Owner = this,
+            };
+            window.Closed += HandlePluginManagerWindowClosed;
+            _pluginManagerWindow = window;
+            window.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            // 受限 TEMP/光标缓存等 UI 初始化失败不应导致整个 Host 闪退。
+            Debug.WriteLine($"[FileKit] Plugin manager window failed: {ex.GetType().Name}: {ex.Message}");
+            if (window is not null)
+            {
+                window.Closed -= HandlePluginManagerWindowClosed;
+            }
+
+            _pluginManagerWindow = null;
+            MessageBox.Show(
+                this,
+                $"打开插件管理失败：{ex.GetType().Name}: {ex.Message}\n\n日志：{_pluginManager.LogFilePath}",
+                "插件管理",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private void HandlePluginManagerWindowClosed(object? sender, EventArgs e)
@@ -83,7 +106,7 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// HostVersion 来自 Host 程序集 AssemblyVersion（1.0.0.0 → 1.0.0）。
+    /// HostVersion 来自 Host 程序集 AssemblyVersion（1.0.1.0 → 1.0.1）。
     /// </summary>
     private static string GetHostVersion()
     {

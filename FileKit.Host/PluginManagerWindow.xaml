@@ -9,7 +9,7 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanResize"
         Background="#E9EDF2"
-        FontFamily="{x:Static SystemFonts.MessageFontFamily}"
+        FontFamily="{DynamicResource AppFontFamily}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display">

@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    全解决方案统一版本：FileKit 1.0.1。
+    主程序、契约、管理器、内置特效与示例插件均由此文件统一版本，
+    避免各 csproj 内部版本号不一致；HostVersion 由 Host 程序集 AssemblyVersion 读取。
+  -->
+  <PropertyGroup>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <InformationalVersion>1.0.1</InformationalVersion>
+  </PropertyGroup>
+
+</Project>

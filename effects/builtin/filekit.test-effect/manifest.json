@@ -1,8 +1,8 @@
 {
   "effectId": "filekit.test-effect",
   "name": "内置测试特效",
-  "version": "1.0.0",
-  "minHostVersion": "1.0.0",
+  "version": "1.0.1",
+  "minHostVersion": "1.0.1",
   "entryAssembly": "libs/FileKit.TestEffect.dll",
   "entryType": "FileKit.TestEffect.TestEffect",
   "target": "Window"
